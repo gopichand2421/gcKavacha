@@ -1,10 +1,6 @@
-function App() {
-  return (
-    <div>
-      <h1>GcKavacha</h1>
-      <p>Your shield against production incidents.</p>
-    </div>
-  );
-}
+import AppRoutes from "./routes/appRoutes";
 
-export default App;
+
+export default function App() {
+  return <AppRoutes />;
+}

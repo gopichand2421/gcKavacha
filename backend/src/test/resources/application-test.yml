@@ -1,0 +1,10 @@
+spring:
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/gckavacha_test
+
+security:
+  jwt:
+    secret: gckavacha-test-secret-key-must-be-at-least-32-bytes-long
+    expiration: 3600
+
