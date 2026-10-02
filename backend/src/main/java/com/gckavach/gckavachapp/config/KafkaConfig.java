@@ -1,9 +1,8 @@
 package com.gckavach.gckavachapp.config;
 
 import com.gckavach.gckavachapp.alert.event.AlertEvent;
-import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.common.serialization.StringSerializer;
-import org.springframework.beans.factory.annotation.Value;
+import com.gckavach.gckavachapp.incident.event.IncidentEvent;
+import org.springframework.boot.kafka.autoconfigure.KafkaProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
@@ -14,71 +13,79 @@ import org.springframework.kafka.support.serializer.JacksonJsonSerializer;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Kafka producer configuration.
- *
- * Responsible for configuring KafkaTemplate used to publish
- * GcKavacha alert events.
- */
 @Configuration
 public class KafkaConfig {
 
-    /**
-     * Kafka bootstrap server.
-     */
-    @Value("${spring.kafka.bootstrap-servers}")
-    private String bootstrapServers;
+    private final KafkaProperties kafkaProperties;
+
+    public KafkaConfig(KafkaProperties kafkaProperties) {
+        this.kafkaProperties = kafkaProperties;
+    }
 
     /**
-     * Creates Kafka producer factory.
-     *
-     * @return configured producer factory
+     * Common producer configuration.
      */
-    @Bean
-    public ProducerFactory<String, AlertEvent> alertEventProducerFactory() {
+    private Map<String, Object> producerProperties() {
 
-        Map<String, Object> properties =
-                new HashMap<>();
+        Map<String, Object> properties = new HashMap<>();
 
-        /*
-         * Kafka broker address.
-         */
         properties.put(
-                ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
-                bootstrapServers
+                org.apache.kafka.clients.producer.ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
+                kafkaProperties.getBootstrapServers()
         );
 
-        /*
-         * Serialize Kafka message keys as String.
-         */
         properties.put(
-                ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
-                StringSerializer.class
+                org.apache.kafka.clients.producer.ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
+                org.apache.kafka.common.serialization.StringSerializer.class
         );
 
-        /*
-         * Serialize AlertEvent as JSON.
-         */
         properties.put(
-                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
+                org.apache.kafka.clients.producer.ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
                 JacksonJsonSerializer.class
         );
 
+        return properties;
+    }
+
+    /**
+     * Producer factory for IncidentEvent.
+     */
+    @Bean
+    public ProducerFactory<String, IncidentEvent> incidentProducerFactory() {
+
         return new DefaultKafkaProducerFactory<>(
-                properties
+                producerProperties()
         );
     }
 
     /**
-     * Creates KafkaTemplate used by AlertEventPublisher.
-     *
-     * @return KafkaTemplate
+     * KafkaTemplate for IncidentEvent.
      */
     @Bean
-    public KafkaTemplate<String, AlertEvent> alertKafkaTemplate() {
+    public KafkaTemplate<String, IncidentEvent> incidentKafkaTemplate(
+            ProducerFactory<String, IncidentEvent> incidentProducerFactory) {
 
-        return new KafkaTemplate<>(
-                alertEventProducerFactory()
+        return new KafkaTemplate<>(incidentProducerFactory);
+    }
+
+    /**
+     * Producer factory for AlertEvent.
+     */
+    @Bean
+    public ProducerFactory<String, AlertEvent> alertProducerFactory() {
+
+        return new DefaultKafkaProducerFactory<>(
+                producerProperties()
         );
+    }
+
+    /**
+     * KafkaTemplate for AlertEvent.
+     */
+    @Bean
+    public KafkaTemplate<String, AlertEvent> alertKafkaTemplate(
+            ProducerFactory<String, AlertEvent> alertProducerFactory) {
+
+        return new KafkaTemplate<>(alertProducerFactory);
     }
 }

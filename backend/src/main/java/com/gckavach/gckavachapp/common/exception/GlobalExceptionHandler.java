@@ -1,47 +1,139 @@
 package com.gckavach.gckavachapp.common.exception;
 
-import jakarta.servlet.http.HttpServletRequest;
+import com.gckavach.gckavachapp.common.api.ApiErrorResponse;
+import com.gckavach.gckavachapp.incident.controller.IncidentController;
+import jakarta.validation.ConstraintViolationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-
-import java.time.Instant;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(AlertNotFoundException.class)
-    public ResponseEntity<ApiError> handleAlertNotFound(AlertNotFoundException exception, HttpServletRequest request) {
-        return buildError(HttpStatus.NOT_FOUND, "ALERT_NOT_FOUND", exception.getMessage(), request);
+    private static final Logger log =
+            LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    /**
+     * Incident not found.
+     */
+    @ExceptionHandler(
+            IncidentController.IncidentNotFoundException.class
+    )
+    public ResponseEntity<ApiErrorResponse> handleIncidentNotFound(
+            IncidentController.IncidentNotFoundException ex) {
+        log.warn(
+                "Incident not found: {}",
+                ex.getMessage()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(new ApiErrorResponse(
+                        "INCIDENT_NOT_FOUND",
+                        ex.getMessage()
+                ));
     }
 
-    @ExceptionHandler(AlertConflictException.class)
-    public ResponseEntity<ApiError> handleAlertConflict(
-            AlertConflictException exception,
-            HttpServletRequest request) {
+    /**
+     * Duplicate incident number.
+     */
+    @ExceptionHandler(IncidentAlreadyExistsException.class)
+    public ResponseEntity<ApiErrorResponse> handleIncidentAlreadyExists(
+            IncidentAlreadyExistsException ex) {
 
-        ApiError error = new ApiError(
-                Instant.now(),
-                HttpStatus.CONFLICT.value(),
-                "Conflict",
-                "ALERT_CONFLICT",
-                exception.getMessage(),
-                request.getRequestURI()
+        log.warn(
+                "Duplicate incident: {}",
+                ex.getMessage()
         );
 
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
-                .body(error);
+                .body(
+                        new ApiErrorResponse(
+                                "INCIDENT_ALREADY_EXISTS",
+                                ex.getMessage()
+                        )
+                );
     }
 
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ApiError> handleIllegalArgument(IllegalArgumentException exception, HttpServletRequest request) {
-        return buildError(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", exception.getMessage(), request);
+    /**
+     * Bean validation errors.
+     */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiErrorResponse> handleValidation(
+            MethodArgumentNotValidException ex) {
+
+        String message = ex.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .findFirst()
+                .map(error ->
+                        error.getField()
+                                + ": "
+                                + error.getDefaultMessage()
+                )
+                .orElse("Validation failed");
+
+        log.warn(
+                "Request validation failed: {}",
+                message
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(
+                        new ApiErrorResponse(
+                                "VALIDATION_ERROR",
+                                message
+                        )
+                );
     }
 
-    private ResponseEntity<ApiError> buildError(HttpStatus status, String code, String message, HttpServletRequest request) {
-        ApiError error = new ApiError(Instant.now(), status.value(), status.getReasonPhrase(), code, message, request.getRequestURI());
-        return ResponseEntity.status(status).body(error);
+    /**
+     * Constraint validation errors.
+     */
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ApiErrorResponse> handleConstraintViolation(
+            ConstraintViolationException ex) {
+
+        log.warn(
+                "Constraint validation failed: {}",
+                ex.getMessage()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(
+                        new ApiErrorResponse(
+                                "VALIDATION_ERROR",
+                                ex.getMessage()
+                        )
+                );
+    }
+
+    /**
+     * Illegal state caused by an invalid incident lifecycle transition.
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ApiErrorResponse> handleIllegalState(
+            IllegalStateException ex) {
+
+        log.warn(
+                "Invalid operation: {}",
+                ex.getMessage()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(
+                        new ApiErrorResponse(
+                                "INVALID_STATE",
+                                ex.getMessage()
+                        )
+                );
     }
 }

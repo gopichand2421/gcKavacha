@@ -169,7 +169,7 @@ public class Alert {
     /**
      * Default constructor required by Spring Data MongoDB.
      */
-    protected Alert() {
+    public Alert() {
     }
 
     /**

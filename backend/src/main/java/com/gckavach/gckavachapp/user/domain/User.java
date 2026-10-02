@@ -36,6 +36,7 @@ public class User {
     @LastModifiedDate
     private Instant updatedAt;
 
+    public User(){};
     public User(String username, String email, String passwordHash, String firstName, String lastName) {
         this.username = username;
         this.email = email;
